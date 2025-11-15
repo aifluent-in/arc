@@ -1,9 +1,8 @@
-name: Sync arc-v2 → aifluent-in/arc
+name: Sync Repo A → Repo B
 
 on:
   push:
     branches: ["main"]
-  workflow_dispatch:
 
 jobs:
   sync:
@@ -12,33 +11,30 @@ jobs:
     steps:
       - name: Checkout Repo A
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set up SSH
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SYNC_SSH_B64 }}" | base64 -d > ~/.ssh/id_ed25519
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -p -m PEM -N "" -f ~/.ssh/id_ed25519 || true
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
       - name: Test SSH connection
-        run: |
-          ssh -T git@github.com || true
+        run: ssh -T git@github.com || true
 
       - name: Clone Repo B
-        run: |
-          git clone git@github.com:aifluent-in/arc.git repo_b
+        run: git clone git@github.com:aifluent-in/arc.git repo_b
 
-      - name: Sync files
+      - name: Sync Files
         run: |
-          rsync -av --delete --exclude '.git' ./ repo_b/ || [ $? -eq 24 ]
+          rsync -av --delete --exclude '.git' ./ repo_b/
 
-      - name: Commit and Push to Repo B
+      - name: Commit & Push
         run: |
           cd repo_b
           git config user.name "ARC Sync Bot"
           git config user.email "sync@arc.com"
           git add --all
-          git commit -m "Auto-sync from arc-v2 main" || echo "No changes"
+          git commit -m "Auto-sync from arc-v2" || echo "No changes"
           git push origin main
